@@ -4,7 +4,7 @@
 -- hebben gedraaid. Voer dit uit via phpMyAdmin of CLI.
 -- =====================================================
 
-USE s27_soulfm;
+USE soulmc_soulfm;
 
 -- 1. Nieuwe rollen toevoegen aan users tabel
 ALTER TABLE users

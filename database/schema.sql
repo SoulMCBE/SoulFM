@@ -1,8 +1,8 @@
 -- SoulFM Radio Website Database Schema
 -- Run this file to set up the database
 
-CREATE DATABASE IF NOT EXISTS s27_soulfm CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE s27_soulfm;
+CREATE DATABASE IF NOT EXISTS soulmc_soulfm CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE soulmc_soulfm;
 
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
