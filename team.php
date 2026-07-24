@@ -54,8 +54,7 @@ function teamInitials(string $name): string {
       <div class="team-grid">
         <?php foreach ($teamMembers as $i => $member): ?>
         <article class="team-card" style="--team-delay: <?= $i * 0.08 ?>s">
-          <span class="team-card-position" aria-label="Positie <?= $i + 1 ?>"><?= $i + 1 ?></span>
-          <div class="team-card-inner">
+          <div class="team-card-frame">
             <div class="team-card-photo">
               <?php if (!empty($member['photo_url'])): ?>
                 <img src="<?= htmlspecialchars($member['photo_url']) ?>" alt="<?= htmlspecialchars($member['name']) ?>" loading="lazy">
