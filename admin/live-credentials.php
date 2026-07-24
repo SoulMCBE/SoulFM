@@ -73,6 +73,7 @@ if ($isAdmin && $_SERVER['REQUEST_METHOD'] === 'POST' && validateCsrf($_POST['cs
             $msg = 'Verwijderen mislukt.';
             $msgType = 'error';
         }
+    }
 }
 
 $djs = getDjsWithLiveStatus();
