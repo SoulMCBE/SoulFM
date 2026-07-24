@@ -24,6 +24,7 @@ if ($isAdmin && $_SERVER['REQUEST_METHOD'] === 'POST' && validateCsrf($_POST['cs
 
     if ($action === 'save') {
         $userId = (int)($_POST['user_id'] ?? 0);
+        $setAsDj = isset($_POST['set_as_dj']) ? 1 : 0;
         $streamType = trim($_POST['stream_type'] ?? 'Icecast');
         $host = trim($_POST['host'] ?? '');
         $mountPoint = trim($_POST['mount_point'] ?? '');
@@ -32,12 +33,13 @@ if ($isAdmin && $_SERVER['REQUEST_METHOD'] === 'POST' && validateCsrf($_POST['cs
         $port = (int)($_POST['port'] ?? 8000);
         $extraNotes = trim($_POST['extra_notes'] ?? '');
 
-        $userStmt = getPDO()->prepare('SELECT id, role FROM users WHERE id = ? LIMIT 1');
+        $pdo = getPDO();
+        $userStmt = $pdo->prepare('SELECT id, role FROM users WHERE id = ? LIMIT 1');
         $userStmt->execute([$userId]);
         $targetUser = $userStmt->fetch();
 
-        if (!$targetUser || !in_array($targetUser['role'], ['dj', 'dj_hoofd'], true)) {
-            $msg = 'Kies een geldige DJ-gebruiker.';
+        if (!$targetUser) {
+            $msg = 'Kies een geldige gebruiker.';
             $msgType = 'error';
         } elseif (!$host || !$username || $port < 1 || $port > 65535) {
             $msg = 'Vul host, gebruikersnaam en een geldige poort in.';
@@ -52,7 +54,12 @@ if ($isAdmin && $_SERVER['REQUEST_METHOD'] === 'POST' && validateCsrf($_POST['cs
                 $msg = 'Vul een wachtwoord in voor deze DJ.';
                 $msgType = 'error';
             } elseif (saveDjLiveCredentials($userId, $streamType, $host, $mountPoint, $username, $password, $port, $extraNotes)) {
-                $msg = 'Live-credentials opgeslagen.';
+                if ($setAsDj && !in_array($targetUser['role'], ['dj', 'dj_hoofd'], true)) {
+                    $pdo->prepare('UPDATE users SET role = ? WHERE id = ?')->execute(['dj', $userId]);
+                    $msg = 'Live-credentials opgeslagen en gebruiker is als DJ ingesteld.';
+                } else {
+                    $msg = 'Live-credentials opgeslagen.';
+                }
             } else {
                 $msg = 'Opslaan mislukt.';
                 $msgType = 'error';
@@ -114,17 +121,17 @@ require_once __DIR__ . '/includes/admin-header.php';
 <div style="display:grid;grid-template-columns:1fr 420px;gap:1.5rem;align-items:start">
   <div class="table-container">
     <div class="table-header">
-      <span class="table-title">DJ accounts (<?= count($djs) ?>)</span>
+      <span class="table-title">Gebruikers (<?= count($djs) ?>)</span>
       <div class="search-input">
         <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
         <input type="text" placeholder="Zoeken..." data-search-table="dj-live-table">
       </div>
     </div>
     <div class="table-wrapper">
-      <table id="dj-live-table" aria-label="DJ live credentials">
+      <table id="dj-live-table" aria-label="Live credentials">
         <thead>
           <tr>
-            <th>DJ</th>
+            <th>Gebruiker</th>
             <th>Type</th>
             <th>Host</th>
             <th>Status</th>
@@ -134,7 +141,7 @@ require_once __DIR__ . '/includes/admin-header.php';
         <tbody>
           <?php foreach ($djs as $djUser): ?>
           <tr style="<?= (int)$djUser['id'] === $editUserId ? 'background:rgba(0,180,216,.07)' : '' ?>">
-            <td data-label="DJ">
+            <td data-label="Gebruiker">
               <div class="td-primary"><?= htmlspecialchars($djUser['username']) ?></div>
               <div class="td-muted"><?= getRoleLabel($djUser['role']) ?></div>
             </td>
@@ -175,7 +182,7 @@ require_once __DIR__ . '/includes/admin-header.php';
     <div class="section-card">
       <div class="section-card-header">
         <span class="section-card-title">
-          <?= $editUser ? 'Live-inlog instellen: ' . htmlspecialchars($editUser['username']) : 'Selecteer een DJ' ?>
+          <?= $editUser ? 'Live-inlog instellen: ' . htmlspecialchars($editUser['username']) : 'Selecteer een gebruiker' ?>
         </span>
       </div>
       <?php if ($editUser): ?>
@@ -211,6 +218,15 @@ require_once __DIR__ . '/includes/admin-header.php';
             <label class="form-label">Password <?= $editCreds ? '<span style="font-weight:400;color:var(--text-dim)">(leeg laten = ongewijzigd)</span>' : '<span class="req">*</span>' ?></label>
             <input type="password" name="password" class="form-control" <?= $editCreds ? '' : 'required' ?> autocomplete="new-password">
           </div>
+          <?php if (!in_array($editUser['role'], ['dj', 'dj_hoofd'], true)): ?>
+          <div class="form-group">
+            <label class="toggle-switch">
+              <input type="checkbox" name="set_as_dj" checked>
+              <span class="toggle-track"></span>
+              <span class="toggle-label">Gebruiker als DJ instellen (rol = DJ)</span>
+            </label>
+          </div>
+          <?php endif; ?>
           <div class="form-group">
             <label class="form-label">Notities</label>
             <textarea name="extra_notes" class="form-control" rows="3"><?= htmlspecialchars($editCreds['extra_notes'] ?? '') ?></textarea>
@@ -223,7 +239,7 @@ require_once __DIR__ . '/includes/admin-header.php';
         </form>
       </div>
       <?php else: ?>
-      <div style="padding:2rem;color:var(--text-dim);text-align:center">Geen DJ-gebruikers gevonden.</div>
+      <div style="padding:2rem;color:var(--text-dim);text-align:center">Geen gebruikers gevonden.</div>
       <?php endif; ?>
     </div>
   </div>

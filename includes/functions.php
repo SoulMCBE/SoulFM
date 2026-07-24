@@ -733,7 +733,7 @@ function deleteDjLiveCredentials(int $userId): bool {
 }
 
 /**
- * DJ-gebruikers met status van live-credentials.
+ * Alle gebruikers met status van live-credentials.
  */
 function getDjsWithLiveStatus(): array {
     try {
@@ -744,7 +744,6 @@ function getDjsWithLiveStatus(): array {
                    IF(lc.id IS NOT NULL, 1, 0) AS has_live_creds
             FROM users u
             LEFT JOIN dj_live_credentials lc ON lc.user_id = u.id
-            WHERE u.role IN ("dj", "dj_hoofd")
             ORDER BY u.role, u.username
         ')->fetchAll();
     } catch (PDOException $e) {
