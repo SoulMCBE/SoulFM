@@ -733,10 +733,99 @@ function deleteDjLiveCredentials(int $userId): bool {
 }
 
 /**
+ * Controleer of een tabel bestaat.
+ */
+function tableExists(string $tableName): bool {
+    try {
+        $stmt = getPDO()->prepare('SHOW TABLES LIKE ?');
+        $stmt->execute([$tableName]);
+        return (bool)$stmt->fetchColumn();
+    } catch (PDOException $e) {
+        return false;
+    }
+}
+
+/**
+ * Live-credentials in bulk toewijzen aan alle (actieve) gebruikers.
+ *
+ * @return array{success: int, skipped: int, failed: int}
+ */
+function bulkSaveDjLiveCredentials(
+    string $streamType,
+    string $host,
+    string $mountPoint,
+    string $sharedUsername,
+    string $password,
+    int $port,
+    string $extraNotes = '',
+    bool $useAccountUsername = true,
+    bool $skipExisting = false,
+    bool $setAsDj = false,
+    bool $activeOnly = true
+): array {
+    $result = ['success' => 0, 'skipped' => 0, 'failed' => 0];
+
+    if (!$host || !$password || $port < 1 || $port > 65535) {
+        return $result;
+    }
+    if (!$useAccountUsername && $sharedUsername === '') {
+        return $result;
+    }
+
+    try {
+        $pdo = getPDO();
+        $sql = 'SELECT u.id, u.username, u.role FROM users u';
+        if ($activeOnly) {
+            $sql .= ' WHERE u.active = 1';
+        }
+        $sql .= ' ORDER BY u.username';
+        $users = $pdo->query($sql)->fetchAll();
+
+        foreach ($users as $user) {
+            $userId = (int)$user['id'];
+
+            if ($skipExisting) {
+                $existing = getDjLiveCredentials($userId);
+                if ($existing) {
+                    $result['skipped']++;
+                    continue;
+                }
+            }
+
+            $username = $useAccountUsername ? $user['username'] : $sharedUsername;
+
+            if (saveDjLiveCredentials($userId, $streamType, $host, $mountPoint, $username, $password, $port, $extraNotes)) {
+                if ($setAsDj && !in_array($user['role'], ['dj', 'dj_hoofd'], true)) {
+                    $pdo->prepare('UPDATE users SET role = ? WHERE id = ?')->execute(['dj', $userId]);
+                }
+                $result['success']++;
+            } else {
+                $result['failed']++;
+            }
+        }
+    } catch (PDOException $e) {
+        error_log('bulkSaveDjLiveCredentials error: ' . $e->getMessage());
+    }
+
+    return $result;
+}
+
+/**
  * Alle gebruikers met status van live-credentials.
  */
 function getDjsWithLiveStatus(): array {
     try {
+        if (!tableExists('dj_live_credentials')) {
+            return getPDO()->query('
+                SELECT u.id, u.username, u.email, u.role, u.active,
+                       NULL AS stream_type, NULL AS host, NULL AS mount_point, NULL AS live_username,
+                       NULL AS port, NULL AS live_updated_at,
+                       0 AS has_live_creds
+                FROM users u
+                ORDER BY u.role, u.username
+            ')->fetchAll();
+        }
+
         return getPDO()->query('
             SELECT u.id, u.username, u.email, u.role, u.active,
                    lc.stream_type, lc.host, lc.mount_point, lc.username AS live_username,

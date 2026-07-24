@@ -73,6 +73,59 @@ if ($isAdmin && $_SERVER['REQUEST_METHOD'] === 'POST' && validateCsrf($_POST['cs
             $msg = 'Verwijderen mislukt.';
             $msgType = 'error';
         }
+    } elseif ($action === 'bulk_save') {
+        $streamType = trim($_POST['stream_type'] ?? 'Icecast');
+        $host = trim($_POST['host'] ?? '');
+        $mountPoint = trim($_POST['mount_point'] ?? '');
+        $sharedUsername = trim($_POST['username'] ?? '');
+        $password = $_POST['password'] ?? '';
+        $port = (int)($_POST['port'] ?? 8000);
+        $extraNotes = trim($_POST['extra_notes'] ?? '');
+        $usernameMode = $_POST['username_mode'] ?? 'account';
+        $skipExisting = isset($_POST['skip_existing']);
+        $setAsDj = isset($_POST['set_as_dj']);
+        $activeOnly = isset($_POST['active_only']);
+
+        if (!$host || !$password || $port < 1 || $port > 65535) {
+            $msg = 'Vul host, wachtwoord en een geldige poort in.';
+            $msgType = 'error';
+        } elseif ($usernameMode !== 'account' && $sharedUsername === '') {
+            $msg = 'Vul een gedeelde gebruikersnaam in of kies account-gebruikersnamen.';
+            $msgType = 'error';
+        } else {
+            $bulkResult = bulkSaveDjLiveCredentials(
+                $streamType,
+                $host,
+                $mountPoint,
+                $sharedUsername,
+                $password,
+                $port,
+                $extraNotes,
+                $usernameMode === 'account',
+                $skipExisting,
+                $setAsDj,
+                $activeOnly
+            );
+
+            if ($bulkResult['success'] > 0) {
+                $msg = sprintf(
+                    'Live-credentials toegewezen aan %d gebruiker(s).',
+                    $bulkResult['success']
+                );
+                if ($bulkResult['skipped'] > 0) {
+                    $msg .= sprintf(' %d overgeslagen (hadden al credentials).', $bulkResult['skipped']);
+                }
+                if ($bulkResult['failed'] > 0) {
+                    $msg .= sprintf(' %d mislukt.', $bulkResult['failed']);
+                }
+            } elseif ($bulkResult['skipped'] > 0) {
+                $msg = 'Alle gebruikers hadden al credentials — niets gewijzigd.';
+                $msgType = 'warning';
+            } else {
+                $msg = 'Bulk-toewijzing mislukt. Controleer de invoer.';
+                $msgType = 'error';
+            }
+        }
     }
 }
 
@@ -117,7 +170,94 @@ require_once __DIR__ . '/includes/admin-header.php';
   </div>
 </div>
 
-<?php if ($isAdmin): ?>
+<?php if ($isAdmin):
+  $missingCreds = count(array_filter($djs, fn($d) => !$d['has_live_creds']));
+?>
+<details class="section-card" style="margin-bottom:1.5rem" <?= $missingCreds > 0 ? 'open' : '' ?>>
+  <summary class="section-card-header" style="cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:1rem">
+    <span class="section-card-title">Bulk toewijzen aan alle gebruikers</span>
+    <span class="badge badge-inactive"><?= $missingCreds ?> zonder credentials</span>
+  </summary>
+  <div class="section-card-body">
+    <p style="color:var(--text-dim);font-size:.9rem;margin-bottom:1.25rem">
+      Wijs dezelfde stream-instellingen in één keer toe aan alle gebruikers. Gebruikersnamen kunnen per account of gedeeld zijn.
+    </p>
+    <form method="POST" novalidate>
+      <input type="hidden" name="csrf_token" value="<?= $csrf ?>">
+      <input type="hidden" name="action" value="bulk_save">
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.75rem">
+        <div class="form-group">
+          <label class="form-label">Type <span class="req">*</span></label>
+          <input type="text" name="stream_type" class="form-control" value="Icecast" required maxlength="50">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Host <span class="req">*</span></label>
+          <input type="text" name="host" class="form-control" required maxlength="150" placeholder="stream.soulfm.nl">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mount</label>
+          <input type="text" name="mount_point" class="form-control" maxlength="100" placeholder="/live">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Poort <span class="req">*</span></label>
+          <input type="number" name="port" class="form-control" value="8000" min="1" max="65535" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Gebruikersnaam-modus</label>
+        <select name="username_mode" class="form-control" id="bulk-username-mode">
+          <option value="account">Per account (elke gebruiker krijgt hun eigen gebruikersnaam)</option>
+          <option value="shared">Gedeeld (zelfde gebruikersnaam voor iedereen)</option>
+        </select>
+      </div>
+      <div class="form-group" id="bulk-shared-username" style="display:none">
+        <label class="form-label">Gedeelde gebruikersnaam <span class="req">*</span></label>
+        <input type="text" name="username" class="form-control" maxlength="100" placeholder="dj">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Wachtwoord <span class="req">*</span></label>
+        <input type="password" name="password" class="form-control" required autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notities</label>
+        <textarea name="extra_notes" class="form-control" rows="2" placeholder="Optionele notities voor alle gebruikers"></textarea>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:.65rem;margin-bottom:1.25rem">
+        <label class="toggle-switch">
+          <input type="checkbox" name="active_only" checked>
+          <span class="toggle-track"></span>
+          <span class="toggle-label">Alleen actieve gebruikers</span>
+        </label>
+        <label class="toggle-switch">
+          <input type="checkbox" name="skip_existing">
+          <span class="toggle-track"></span>
+          <span class="toggle-label">Gebruikers met bestaande credentials overslaan</span>
+        </label>
+        <label class="toggle-switch">
+          <input type="checkbox" name="set_as_dj">
+          <span class="toggle-track"></span>
+          <span class="toggle-label">Niet-DJ gebruikers als DJ instellen</span>
+        </label>
+      </div>
+
+      <button type="submit" class="btn btn-primary" data-confirm-delete="Live-credentials toewijzen aan alle geselecteerde gebruikers? Bestaande instellingen worden overschreven (tenzij overslaan is aangevinkt).">
+        <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        Toewijzen aan alle gebruikers
+      </button>
+    </form>
+  </div>
+</details>
+
+<script>
+document.getElementById('bulk-username-mode')?.addEventListener('change', function () {
+  const shared = document.getElementById('bulk-shared-username');
+  if (shared) shared.style.display = this.value === 'shared' ? 'block' : 'none';
+});
+</script>
+
 <div style="display:grid;grid-template-columns:1fr 420px;gap:1.5rem;align-items:start">
   <div class="table-container">
     <div class="table-header">
