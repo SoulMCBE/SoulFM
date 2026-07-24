@@ -746,11 +746,13 @@ function tableExists(string $tableName): bool {
 }
 
 /**
- * Live-credentials in bulk toewijzen aan alle (actieve) gebruikers.
+ * Live-credentials in bulk toewijzen aan geselecteerde gebruikers.
  *
+ * @param int[] $userIds
  * @return array{success: int, skipped: int, failed: int}
  */
 function bulkSaveDjLiveCredentials(
+    array $userIds,
     string $streamType,
     string $host,
     string $mountPoint,
@@ -760,12 +762,11 @@ function bulkSaveDjLiveCredentials(
     string $extraNotes = '',
     bool $useAccountUsername = true,
     bool $skipExisting = false,
-    bool $setAsDj = false,
-    bool $activeOnly = true
+    bool $setAsDj = false
 ): array {
     $result = ['success' => 0, 'skipped' => 0, 'failed' => 0];
 
-    if (!$host || !$password || $port < 1 || $port > 65535) {
+    if (!$host || !$password || $port < 1 || $port > 65535 || empty($userIds)) {
         return $result;
     }
     if (!$useAccountUsername && $sharedUsername === '') {
@@ -774,12 +775,11 @@ function bulkSaveDjLiveCredentials(
 
     try {
         $pdo = getPDO();
-        $sql = 'SELECT u.id, u.username, u.role FROM users u';
-        if ($activeOnly) {
-            $sql .= ' WHERE u.active = 1';
-        }
-        $sql .= ' ORDER BY u.username';
-        $users = $pdo->query($sql)->fetchAll();
+        $userIds = array_values(array_unique(array_map('intval', $userIds)));
+        $placeholders = implode(',', array_fill(0, count($userIds), '?'));
+        $stmt = $pdo->prepare("SELECT id, username, role FROM users WHERE id IN ($placeholders)");
+        $stmt->execute($userIds);
+        $users = $stmt->fetchAll();
 
         foreach ($users as $user) {
             $userId = (int)$user['id'];

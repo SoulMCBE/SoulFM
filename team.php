@@ -50,29 +50,33 @@ function teamInitials(string $name): string {
 <section class="section team-section">
   <div class="container">
     <?php if ($teamMembers): ?>
-    <div class="team-grid">
-      <?php foreach ($teamMembers as $i => $member): ?>
-      <article class="team-card" style="--team-delay: <?= $i * 0.08 ?>s">
-        <div class="team-card-photo">
-          <?php if (!empty($member['photo_url'])): ?>
-            <img src="<?= htmlspecialchars($member['photo_url']) ?>" alt="<?= htmlspecialchars($member['name']) ?>" loading="lazy">
-          <?php else: ?>
-            <div class="team-card-avatar" aria-hidden="true"><?= htmlspecialchars(teamInitials($member['name'])) ?></div>
-          <?php endif; ?>
-          <div class="team-card-overlay" aria-hidden="true"></div>
-        </div>
-        <div class="team-card-content">
-          <div class="team-card-role"><?= htmlspecialchars($member['role_title']) ?></div>
-          <h2 class="team-card-name"><?= htmlspecialchars($member['name']) ?></h2>
-          <div class="team-card-divider" aria-hidden="true"></div>
-          <?php if (!empty($member['bio'])): ?>
-          <p class="team-card-bio"><?= nl2br(htmlspecialchars($member['bio'])) ?></p>
-          <?php else: ?>
-          <p class="team-card-bio team-card-bio--placeholder">Meer informatie over dit teamlid volgt binnenkort.</p>
-          <?php endif; ?>
-        </div>
-      </article>
-      <?php endforeach; ?>
+    <div class="team-board">
+      <div class="team-grid">
+        <?php foreach ($teamMembers as $i => $member): ?>
+        <article class="team-card" style="--team-delay: <?= $i * 0.08 ?>s">
+          <span class="team-card-position" aria-label="Positie <?= $i + 1 ?>"><?= $i + 1 ?></span>
+          <div class="team-card-inner">
+            <div class="team-card-photo">
+              <?php if (!empty($member['photo_url'])): ?>
+                <img src="<?= htmlspecialchars($member['photo_url']) ?>" alt="<?= htmlspecialchars($member['name']) ?>" loading="lazy">
+              <?php else: ?>
+                <div class="team-card-avatar" aria-hidden="true"><?= htmlspecialchars(teamInitials($member['name'])) ?></div>
+              <?php endif; ?>
+            </div>
+            <div class="team-card-content">
+              <div class="team-card-role"><?= htmlspecialchars($member['role_title']) ?></div>
+              <h2 class="team-card-name"><?= htmlspecialchars($member['name']) ?></h2>
+              <div class="team-card-divider" aria-hidden="true"></div>
+              <?php if (!empty($member['bio'])): ?>
+              <p class="team-card-bio"><?= nl2br(htmlspecialchars($member['bio'])) ?></p>
+              <?php else: ?>
+              <p class="team-card-bio team-card-bio--placeholder">Meer informatie over dit teamlid volgt binnenkort.</p>
+              <?php endif; ?>
+            </div>
+          </div>
+        </article>
+        <?php endforeach; ?>
+      </div>
     </div>
     <?php else: ?>
     <div class="team-empty">
