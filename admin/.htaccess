@@ -1,0 +1,8 @@
+# SoulFM Admin - Extra beveiliging
+Options -Indexes
+
+# Optioneel: beperk toegang tot specifieke IP-adressen (verwijder # om te activeren)
+# Order Deny,Allow
+# Deny from all
+# Allow from 192.168.1.0/24
+# Allow from jouw.ip.adres.hier
