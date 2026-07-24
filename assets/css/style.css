@@ -935,11 +935,14 @@ textarea.form-control { resize: vertical; min-height: 120px; }
 .news-grid.news-page { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
 
 .team-grid {
+  --team-photo-size: 148px;
+  --team-photo-frame: calc(var(--team-photo-size) + 14px); /* padding + border */
+  --team-photo-overhang: calc(var(--team-photo-frame) / 2);
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 3rem 2rem;
+  gap: 2.5rem 2rem;
   align-items: stretch;
-  padding-top: 4.5rem;
+  padding-top: 1.5rem;
 }
 
 .team-section .container {
@@ -957,6 +960,7 @@ textarea.form-control { resize: vertical; min-height: 120px; }
 .team-card {
   position: relative;
   height: 100%;
+  margin-top: var(--team-photo-overhang, 81px);
   animation: teamFadeUp 0.6s ease both;
   animation-delay: var(--team-delay, 0s);
 }
@@ -1194,8 +1198,7 @@ textarea.form-control { resize: vertical; min-height: 120px; }
 @media (max-width: 1024px) {
   .team-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 3.5rem 1.5rem;
-    padding-top: 4rem;
+    gap: 2.5rem 1.5rem;
   }
 }
 
@@ -1211,8 +1214,8 @@ textarea.form-control { resize: vertical; min-height: 120px; }
     grid-template-columns: 1fr;
     max-width: 340px;
     margin: 0 auto;
-    gap: 4rem;
-    padding-top: 3.5rem;
+    gap: 2.5rem;
+    --team-photo-size: 132px;
   }
 
   .team-card-photo {
