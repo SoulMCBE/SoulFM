@@ -5,9 +5,9 @@
 
 // Database configuration
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'soulfm_web');
-define('DB_USER', 'soulfm_web');
-define('DB_PASS', 'fkZ3B5SWTvcSgyNENjNk');
+define('DB_NAME', 'soulmc_soulfm');
+define('DB_USER', 'soulmc_soulfm');
+define('DB_PASS', 'JxB2kGrYtHdbqCRq6S9R');
 define('DB_CHARSET', 'utf8mb4');
 
 // Application settings
