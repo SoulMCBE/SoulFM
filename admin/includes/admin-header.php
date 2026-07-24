@@ -110,6 +110,13 @@ $pendingCount = getPendingRequestsCount();
       </a>
       <?php endif; ?>
 
+      <?php if (hasPermission('view_stream_info') || ($_SESSION['user_role'] ?? '') === 'admin'): ?>
+      <a href="<?= BASE_URL ?>/admin/live-credentials.php" class="sidebar-link <?= ($activePage ?? '') === 'live-credentials' ? 'active' : '' ?>">
+        <svg viewBox="0 0 24 24"><path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2c0-1.77-1-3.29-2.5-4.03v8.05c1.5-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+        <?= ($_SESSION['user_role'] ?? '') === 'admin' ? 'DJ Live-credentials' : 'Mijn Live Radio Inlog' ?>
+      </a>
+      <?php endif; ?>
+
       <?php if (hasPermission('manage_users')): ?>
       <span class="nav-section-label">Beheer</span>
       <a href="<?= BASE_URL ?>/admin/users.php" class="sidebar-link <?= ($activePage ?? '') === 'users' ? 'active' : '' ?>">
@@ -132,6 +139,10 @@ $pendingCount = getPendingRequestsCount();
           <div class="sidebar-role"><?= htmlspecialchars($currentUser['role'] ?? '') ?></div>
         </div>
       </div>
+      <a href="<?= BASE_URL ?>/admin/wachtwoord.php" class="sidebar-logout" style="margin-bottom:.5rem;background:rgba(0,180,216,.08);color:var(--accent)">
+        <svg viewBox="0 0 24 24"><path d="M12 1a5 5 0 00-5 5v3H6a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V11a2 2 0 00-2-2h-1V6a5 5 0 00-5-5zm-3 8V6a3 3 0 116 0v3H9z"/></svg>
+        Wachtwoord wijzigen
+      </a>
       <a href="<?= BASE_URL ?>/admin/logout.php" class="sidebar-logout">
         <svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
         Uitloggen

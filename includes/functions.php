@@ -593,3 +593,161 @@ function getAllUsersWithMailStatus(): array {
         return [];
     }
 }
+
+/**
+ * Haal afdelingsmail-credentials op voor een afdeling.
+ */
+function getDepartmentMailCredentials(string $departmentSlug): ?array {
+    try {
+        $stmt = getPDO()->prepare('SELECT * FROM department_mail_credentials WHERE department_slug = ? LIMIT 1');
+        $stmt->execute([$departmentSlug]);
+        $row = $stmt->fetch();
+        if (!$row) return null;
+        $row['mail_password_plain'] = decryptMailPassword($row['mail_password_enc']);
+        return $row;
+    } catch (PDOException $e) {
+        error_log('getDepartmentMailCredentials error: ' . $e->getMessage());
+        return null;
+    }
+}
+
+/**
+ * Opslaan/update van afdelingsmail-credentials.
+ */
+function saveDepartmentMailCredentials(
+    string $departmentSlug,
+    string $mailAddress,
+    string $plainPassword,
+    string $imapServer = 'mail.soulfm.nl',
+    string $smtpServer = 'mail.soulfm.nl',
+    int $imapPort = 993,
+    int $smtpPort = 587,
+    string $extraNotes = ''
+): bool {
+    try {
+        $enc = encryptMailPassword($plainPassword);
+        $stmt = getPDO()->prepare('
+            INSERT INTO department_mail_credentials
+                (department_slug, mail_address, mail_password_enc, imap_server, smtp_server, imap_port, smtp_port, extra_notes)
+            VALUES (?,?,?,?,?,?,?,?)
+            ON DUPLICATE KEY UPDATE
+                mail_address = VALUES(mail_address),
+                mail_password_enc = VALUES(mail_password_enc),
+                imap_server = VALUES(imap_server),
+                smtp_server = VALUES(smtp_server),
+                imap_port = VALUES(imap_port),
+                smtp_port = VALUES(smtp_port),
+                extra_notes = VALUES(extra_notes),
+                updated_at = NOW()
+        ');
+        $stmt->execute([
+            $departmentSlug,
+            $mailAddress,
+            $enc,
+            $imapServer,
+            $smtpServer,
+            $imapPort,
+            $smtpPort,
+            $extraNotes ?: null
+        ]);
+        return true;
+    } catch (PDOException $e) {
+        error_log('saveDepartmentMailCredentials error: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * DJ live-credentials voor 1 gebruiker ophalen.
+ */
+function getDjLiveCredentials(int $userId): ?array {
+    try {
+        $stmt = getPDO()->prepare('SELECT * FROM dj_live_credentials WHERE user_id = ? LIMIT 1');
+        $stmt->execute([$userId]);
+        $row = $stmt->fetch();
+        if (!$row) return null;
+        $row['password_plain'] = decryptMailPassword($row['password_enc']);
+        return $row;
+    } catch (PDOException $e) {
+        error_log('getDjLiveCredentials error: ' . $e->getMessage());
+        return null;
+    }
+}
+
+/**
+ * DJ live-credentials opslaan of updaten.
+ */
+function saveDjLiveCredentials(
+    int $userId,
+    string $streamType,
+    string $host,
+    string $mountPoint,
+    string $username,
+    string $password,
+    int $port,
+    string $extraNotes = ''
+): bool {
+    try {
+        $enc = encryptMailPassword($password);
+        $stmt = getPDO()->prepare('
+            INSERT INTO dj_live_credentials
+                (user_id, stream_type, host, mount_point, username, password_enc, port, extra_notes)
+            VALUES (?,?,?,?,?,?,?,?)
+            ON DUPLICATE KEY UPDATE
+                stream_type = VALUES(stream_type),
+                host = VALUES(host),
+                mount_point = VALUES(mount_point),
+                username = VALUES(username),
+                password_enc = VALUES(password_enc),
+                port = VALUES(port),
+                extra_notes = VALUES(extra_notes),
+                updated_at = NOW()
+        ');
+        $stmt->execute([
+            $userId,
+            $streamType,
+            $host,
+            $mountPoint,
+            $username,
+            $enc,
+            $port,
+            $extraNotes ?: null
+        ]);
+        return true;
+    } catch (PDOException $e) {
+        error_log('saveDjLiveCredentials error: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * DJ live-credentials verwijderen.
+ */
+function deleteDjLiveCredentials(int $userId): bool {
+    try {
+        getPDO()->prepare('DELETE FROM dj_live_credentials WHERE user_id = ?')->execute([$userId]);
+        return true;
+    } catch (PDOException $e) {
+        return false;
+    }
+}
+
+/**
+ * DJ-gebruikers met status van live-credentials.
+ */
+function getDjsWithLiveStatus(): array {
+    try {
+        return getPDO()->query('
+            SELECT u.id, u.username, u.email, u.role, u.active,
+                   lc.stream_type, lc.host, lc.mount_point, lc.username AS live_username,
+                   lc.port, lc.updated_at AS live_updated_at,
+                   IF(lc.id IS NOT NULL, 1, 0) AS has_live_creds
+            FROM users u
+            LEFT JOIN dj_live_credentials lc ON lc.user_id = u.id
+            WHERE u.role IN ("dj", "dj_hoofd")
+            ORDER BY u.role, u.username
+        ')->fetchAll();
+    } catch (PDOException $e) {
+        return [];
+    }
+}

@@ -45,6 +45,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validateCsrf($_POST['csrf_token'] ?
     if ($action === 'toggle_active' && $userId && $userId !== (int)$_SESSION['user_id']) {
         $pdo->prepare('UPDATE users SET active = NOT active WHERE id = ?')->execute([$userId]);
         $msg = 'Gebruikersstatus gewijzigd.';
+    } elseif ($action === 'delete_user') {
+        if (!$userId) {
+            $msg = 'Ongeldige gebruiker.';
+            $msgType = 'error';
+        } elseif ($userId === (int)$_SESSION['user_id']) {
+            $msg = 'Je kunt je eigen account niet verwijderen.';
+            $msgType = 'error';
+        } else {
+            $stmt = $pdo->prepare('SELECT role, username FROM users WHERE id = ? LIMIT 1');
+            $stmt->execute([$userId]);
+            $toDelete = $stmt->fetch();
+
+            if (!$toDelete) {
+                $msg = 'Gebruiker niet gevonden.';
+                $msgType = 'error';
+            } elseif ($toDelete['role'] === 'admin') {
+                $adminCount = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'admin'")->fetchColumn();
+                if ($adminCount <= 1) {
+                    $msg = 'Je kunt de laatste admin niet verwijderen.';
+                    $msgType = 'error';
+                } else {
+                    $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$userId]);
+                    $msg = "Gebruiker '" . $toDelete['username'] . "' verwijderd.";
+                }
+            } else {
+                $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$userId]);
+                $msg = "Gebruiker '" . $toDelete['username'] . "' verwijderd.";
+            }
+        }
+    } elseif ($action === 'set_password') {
+        $newPassword = $_POST['set_password_value'] ?? '';
+        if (!$userId || strlen($newPassword) < 8) {
+            $msg = 'Nieuw wachtwoord moet minimaal 8 tekens hebben.';
+            $msgType = 'error';
+        } else {
+            $hash = password_hash($newPassword, PASSWORD_DEFAULT);
+            $pdo->prepare('UPDATE users SET password_hash = ? WHERE id = ?')->execute([$hash, $userId]);
+            $msg = 'Wachtwoord bijgewerkt voor gebruiker.';
+        }
     } elseif ($action === 'add_user') {
         $username   = trim($_POST['new_username'] ?? '');
         $email      = trim($_POST['new_email']    ?? '');
@@ -183,17 +222,38 @@ require_once __DIR__ . '/includes/admin-header.php';
           </td>
           <td data-label="Acties">
             <?php if ($u['id'] != $_SESSION['user_id']): ?>
-            <form method="POST" style="display:inline">
-              <input type="hidden" name="csrf_token" value="<?= $csrf ?>">
-              <input type="hidden" name="action" value="toggle_active">
-              <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
-              <button type="submit" class="btn-icon <?= $u['active'] ? 'del' : 'check' ?>"
-                title="<?= $u['active'] ? 'Deactiveren' : 'Activeren' ?>"
-                data-confirm-delete="<?= $u['active'] ? 'Gebruiker deactiveren?' : 'Gebruiker activeren?' ?>"
-                aria-label="<?= $u['active'] ? 'Deactiveer' : 'Activeer' ?> gebruiker <?= htmlspecialchars($u['username']) ?>">
-                <svg viewBox="0 0 24 24"><path d="<?= $u['active'] ? 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11H7v-2h10v2z' : 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z' ?>"/></svg>
+            <div class="action-btns">
+              <form method="POST" style="display:inline">
+                <input type="hidden" name="csrf_token" value="<?= $csrf ?>">
+                <input type="hidden" name="action" value="toggle_active">
+                <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                <button type="submit" class="btn-icon <?= $u['active'] ? 'del' : 'check' ?>"
+                  title="<?= $u['active'] ? 'Deactiveren' : 'Activeren' ?>"
+                  data-confirm-delete="<?= $u['active'] ? 'Gebruiker deactiveren?' : 'Gebruiker activeren?' ?>"
+                  aria-label="<?= $u['active'] ? 'Deactiveer' : 'Activeer' ?> gebruiker <?= htmlspecialchars($u['username']) ?>">
+                  <svg viewBox="0 0 24 24"><path d="<?= $u['active'] ? 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11H7v-2h10v2z' : 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z' ?>"/></svg>
+                </button>
+              </form>
+              <button type="button" class="btn-icon edit"
+                data-open-password-modal="1"
+                data-user-id="<?= $u['id'] ?>"
+                data-username="<?= htmlspecialchars($u['username']) ?>"
+                title="Wachtwoord wijzigen"
+                aria-label="Wijzig wachtwoord voor <?= htmlspecialchars($u['username']) ?>">
+                <svg viewBox="0 0 24 24"><path d="M12 1a5 5 0 00-5 5v3H6a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V11a2 2 0 00-2-2h-1V6a5 5 0 00-5-5zm-3 8V6a3 3 0 116 0v3H9zm3 5a2 2 0 110 4 2 2 0 010-4z"/></svg>
               </button>
-            </form>
+              <form method="POST" style="display:inline">
+                <input type="hidden" name="csrf_token" value="<?= $csrf ?>">
+                <input type="hidden" name="action" value="delete_user">
+                <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                <button type="submit" class="btn-icon del"
+                  title="Verwijderen"
+                  data-confirm-delete="Gebruiker <?= htmlspecialchars(addslashes($u['username'])) ?> definitief verwijderen?"
+                  aria-label="Verwijder gebruiker <?= htmlspecialchars($u['username']) ?>">
+                  <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                </button>
+              </form>
+            </div>
             <?php endif; ?>
           </td>
         </tr>
@@ -244,5 +304,47 @@ require_once __DIR__ . '/includes/admin-header.php';
     </form>
   </div>
 </div>
+
+<!-- Set Password Modal -->
+<div class="modal-overlay" id="set-password-modal" role="dialog" aria-modal="true" aria-labelledby="set-password-title">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="set-password-title">Wachtwoord wijzigen</span>
+      <button class="modal-close" data-modal-close="set-password-modal" aria-label="Sluiten">
+        <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+      </button>
+    </div>
+    <form method="POST" action="">
+      <div class="modal-body">
+        <input type="hidden" name="csrf_token" value="<?= $csrf ?>">
+        <input type="hidden" name="action" value="set_password">
+        <input type="hidden" name="user_id" id="set-password-user-id" value="">
+
+        <div style="margin-bottom:1rem;color:var(--text-dim)">
+          Gebruiker: <strong id="set-password-username" style="color:var(--white)">—</strong>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Nieuw wachtwoord <span class="req">*</span></label>
+          <input type="password" name="set_password_value" class="form-control" required minlength="8" autocomplete="new-password" placeholder="Minimaal 8 tekens">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" data-modal-close="set-password-modal">Annuleren</button>
+        <button type="submit" class="btn btn-primary">Wachtwoord opslaan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('[data-open-password-modal]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.getElementById('set-password-user-id').value = btn.dataset.userId || '';
+    document.getElementById('set-password-username').textContent = btn.dataset.username || '';
+    openModal('set-password-modal');
+  });
+});
+</script>
 
 <?php require_once __DIR__ . '/includes/admin-footer.php'; ?>

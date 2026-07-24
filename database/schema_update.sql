@@ -108,4 +108,36 @@ CREATE TABLE IF NOT EXISTS user_mail_credentials (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- 6. Afdelingsmail login-credentials
+CREATE TABLE IF NOT EXISTS department_mail_credentials (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    department_slug VARCHAR(50) NOT NULL UNIQUE,
+    mail_address VARCHAR(150) NOT NULL,
+    mail_password_enc TEXT NOT NULL,
+    imap_server VARCHAR(100) DEFAULT 'mail.soulfm.nl',
+    smtp_server VARCHAR(100) DEFAULT 'mail.soulfm.nl',
+    imap_port SMALLINT DEFAULT 993,
+    smtp_port SMALLINT DEFAULT 587,
+    extra_notes TEXT DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (department_slug) REFERENCES departments(slug) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- 7. DJ live-radio credentials per gebruiker
+CREATE TABLE IF NOT EXISTS dj_live_credentials (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL UNIQUE,
+    stream_type VARCHAR(50) NOT NULL DEFAULT 'Icecast',
+    host VARCHAR(150) NOT NULL,
+    mount_point VARCHAR(100) DEFAULT '',
+    username VARCHAR(100) NOT NULL,
+    password_enc TEXT NOT NULL,
+    port SMALLINT NOT NULL DEFAULT 8000,
+    extra_notes TEXT DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 -- Klaar! Alle nieuwe tabellen en rollen zijn toegevoegd.

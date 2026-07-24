@@ -12,7 +12,7 @@ $csrf       = generateCsrfToken();
 
 $userRole   = $_SESSION['user_role'] ?? 'listener';
 $userDept   = getUserDepartment($userRole);
-$isAdmin    = ($userRole === 'admin' || $userRole === 'moderator');
+$isAdmin    = ($userRole === 'admin');
 
 // Admin kan alle afdelingen zien, medewerkers alleen eigen afdeling
 if ($isAdmin) {
@@ -26,9 +26,11 @@ if ($isAdmin) {
 
 $emails = $selectedDept ? getDepartmentEmails($selectedDept) : [];
 $currentDeptInfo = $selectedDept ? getDepartment($selectedDept) : null;
+$deptCreds = $selectedDept ? getDepartmentMailCredentials($selectedDept) : null;
 
 // Admin: beheer e-mails toevoegen/verwijderen
 $msg = '';
+$msgType = 'success';
 if ($isAdmin && $_SERVER['REQUEST_METHOD'] === 'POST' && validateCsrf($_POST['csrf_token'] ?? '')) {
     $pdo    = getPDO();
     $action = $_POST['action'] ?? '';
@@ -45,6 +47,7 @@ if ($isAdmin && $_SERVER['REQUEST_METHOD'] === 'POST' && validateCsrf($_POST['cs
             $msg = 'E-mailadres toegevoegd.';
         } else {
             $msg = 'Vul alle verplichte velden in met een geldig e-mailadres.';
+            $msgType = 'error';
         }
         $emails = getDepartmentEmails($selectedDept);
 
@@ -55,14 +58,48 @@ if ($isAdmin && $_SERVER['REQUEST_METHOD'] === 'POST' && validateCsrf($_POST['cs
             $msg = 'E-mailadres verwijderd.';
         }
         $emails = getDepartmentEmails($selectedDept);
+    } elseif ($action === 'save_login_creds') {
+        $dept = trim($_POST['dept_slug'] ?? '');
+        $mailAddress = trim($_POST['mail_address'] ?? '');
+        $mailPassword = $_POST['mail_password'] ?? '';
+        $imapServer = trim($_POST['imap_server'] ?? 'mail.soulfm.nl');
+        $smtpServer = trim($_POST['smtp_server'] ?? 'mail.soulfm.nl');
+        $imapPort = (int)($_POST['imap_port'] ?? 993);
+        $smtpPort = (int)($_POST['smtp_port'] ?? 587);
+        $extraNotes = trim($_POST['extra_notes'] ?? '');
+
+        if (!$dept || !filter_var($mailAddress, FILTER_VALIDATE_EMAIL)) {
+            $msg = 'Vul een geldig e-mailadres in.';
+            $msgType = 'error';
+        } elseif ($imapPort < 1 || $imapPort > 65535 || $smtpPort < 1 || $smtpPort > 65535) {
+            $msg = 'Gebruik geldige poorten (1-65535).';
+            $msgType = 'error';
+        } else {
+            if ($mailPassword === '') {
+                $existingCreds = getDepartmentMailCredentials($dept);
+                $mailPassword = $existingCreds['mail_password_plain'] ?? '';
+            }
+
+            if ($mailPassword === '') {
+                $msg = 'Vul een wachtwoord in voor de afdelingsmail.';
+                $msgType = 'error';
+            } elseif (saveDepartmentMailCredentials($dept, $mailAddress, $mailPassword, $imapServer, $smtpServer, $imapPort, $smtpPort, $extraNotes)) {
+                $msg = 'Afdelingsmail inloggegevens opgeslagen.';
+            } else {
+                $msg = 'Opslaan van inloggegevens is mislukt.';
+                $msgType = 'error';
+            }
+        }
     }
+
+    $deptCreds = $selectedDept ? getDepartmentMailCredentials($selectedDept) : null;
 }
 
 require_once __DIR__ . '/includes/admin-header.php';
 ?>
 
 <?php if ($msg): ?>
-<div class="alert alert-success"><?= htmlspecialchars($msg) ?></div>
+<div class="alert alert-<?= $msgType ?>"><?= htmlspecialchars($msg) ?></div>
 <?php endif; ?>
 
 <div class="page-header-admin">
@@ -110,6 +147,29 @@ require_once __DIR__ . '/includes/admin-header.php';
         <div style="font-size:.85rem;color:var(--text-dim)"><?= htmlspecialchars($currentDeptInfo['description'] ?? '') ?></div>
         <?php if ($currentDeptInfo['email']): ?>
         <div style="font-size:.85rem;margin-top:.25rem"><a href="mailto:<?= htmlspecialchars($currentDeptInfo['email']) ?>" style="color:var(--accent)"><?= htmlspecialchars($currentDeptInfo['email']) ?></a></div>
+        <?php endif; ?>
+      </div>
+    </div>
+
+    <div class="section-card" style="margin-bottom:1.5rem">
+      <div class="section-card-header">
+        <span class="section-card-title">Afdelingsmail inloggegevens</span>
+      </div>
+      <div class="section-card-body">
+        <?php if (!$deptCreds): ?>
+          <div style="color:var(--text-dim)">Nog geen inloggegevens ingesteld voor deze afdeling.</div>
+        <?php else: ?>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem 1rem">
+            <div><div style="font-size:.75rem;color:var(--text-dim)">E-mailadres</div><div style="font-family:monospace;color:var(--accent)"><?= htmlspecialchars($deptCreds['mail_address']) ?></div></div>
+            <div><div style="font-size:.75rem;color:var(--text-dim)">Laatste update</div><div><?= htmlspecialchars(formatRelativeDate($deptCreds['updated_at'])) ?></div></div>
+            <div><div style="font-size:.75rem;color:var(--text-dim)">IMAP</div><div style="font-family:monospace"><?= htmlspecialchars($deptCreds['imap_server']) ?>:<?= (int)$deptCreds['imap_port'] ?></div></div>
+            <div><div style="font-size:.75rem;color:var(--text-dim)">SMTP</div><div style="font-family:monospace"><?= htmlspecialchars($deptCreds['smtp_server']) ?>:<?= (int)$deptCreds['smtp_port'] ?></div></div>
+            <div><div style="font-size:.75rem;color:var(--text-dim)">Wachtwoord</div><div id="dept-mail-password" style="font-family:monospace;filter:blur(6px);user-select:none"><?= htmlspecialchars($deptCreds['mail_password_plain'] ?? '—') ?></div></div>
+            <div style="display:flex;align-items:end"><button type="button" class="btn btn-secondary btn-sm" onclick="toggleDeptMailPassword()">Toon / verberg</button></div>
+          </div>
+          <?php if (!empty($deptCreds['extra_notes'])): ?>
+            <div style="margin-top:1rem;padding:.85rem 1rem;background:rgba(0,180,216,.06);border:1px solid rgba(0,180,216,.15);border-radius:10px;white-space:pre-wrap"><?= htmlspecialchars($deptCreds['extra_notes']) ?></div>
+          <?php endif; ?>
         <?php endif; ?>
       </div>
     </div>
@@ -190,6 +250,57 @@ require_once __DIR__ . '/includes/admin-header.php';
         </form>
       </div>
     </div>
+
+    <div class="section-card" style="margin-top:1.5rem">
+      <div class="section-card-header">
+        <span class="section-card-title">Afdelingsmail inloggegevens instellen</span>
+      </div>
+      <div class="section-card-body">
+        <form method="POST" action="?dept=<?= urlencode($selectedDept) ?>">
+          <input type="hidden" name="csrf_token" value="<?= $csrf ?>">
+          <input type="hidden" name="action" value="save_login_creds">
+          <input type="hidden" name="dept_slug" value="<?= htmlspecialchars($selectedDept) ?>">
+
+          <div class="form-group">
+            <label class="form-label">E-mailadres <span class="req">*</span></label>
+            <input type="email" name="mail_address" class="form-control" required maxlength="150"
+              value="<?= htmlspecialchars($deptCreds['mail_address'] ?? ($selectedDept . '@soulfm.nl')) ?>">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Wachtwoord <?= $deptCreds ? '<span style="font-weight:400;color:var(--text-dim)">(leeg laten = ongewijzigd)</span>' : '<span class="req">*</span>' ?></label>
+            <input type="password" name="mail_password" class="form-control" <?= $deptCreds ? '' : 'required' ?> autocomplete="new-password">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 100px;gap:.75rem">
+            <div class="form-group">
+              <label class="form-label">IMAP server</label>
+              <input type="text" name="imap_server" class="form-control" value="<?= htmlspecialchars($deptCreds['imap_server'] ?? 'mail.soulfm.nl') ?>">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Poort</label>
+              <input type="number" name="imap_port" class="form-control" min="1" max="65535" value="<?= htmlspecialchars((string)($deptCreds['imap_port'] ?? 993)) ?>">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 100px;gap:.75rem">
+            <div class="form-group">
+              <label class="form-label">SMTP server</label>
+              <input type="text" name="smtp_server" class="form-control" value="<?= htmlspecialchars($deptCreds['smtp_server'] ?? 'mail.soulfm.nl') ?>">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Poort</label>
+              <input type="number" name="smtp_port" class="form-control" min="1" max="65535" value="<?= htmlspecialchars((string)($deptCreds['smtp_port'] ?? 587)) ?>">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Notities</label>
+            <textarea name="extra_notes" class="form-control" rows="3"><?= htmlspecialchars($deptCreds['extra_notes'] ?? '') ?></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm">
+            <svg viewBox="0 0 24 24"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+            Inloggegevens opslaan
+          </button>
+        </form>
+      </div>
+    </div>
     <?php endif; ?>
 
     <?php else: ?>
@@ -197,5 +308,15 @@ require_once __DIR__ . '/includes/admin-header.php';
     <?php endif; ?>
   </div>
 </div>
+
+<script>
+function toggleDeptMailPassword() {
+  const el = document.getElementById('dept-mail-password');
+  if (!el) return;
+  const hidden = el.style.filter !== 'none';
+  el.style.filter = hidden ? 'none' : 'blur(6px)';
+  el.style.userSelect = hidden ? 'text' : 'none';
+}
+</script>
 
 <?php require_once __DIR__ . '/includes/admin-footer.php'; ?>

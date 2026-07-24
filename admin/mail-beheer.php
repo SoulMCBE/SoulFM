@@ -293,7 +293,7 @@ require_once __DIR__ . '/includes/admin-header.php';
     <!-- Beveiligingsnotitie -->
     <div style="margin-top:1rem;padding:1rem 1.25rem;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.15);border-radius:10px;font-size:.78rem;color:var(--text-dim)">
       <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:#fbbf24;display:inline;vertical-align:middle;margin-right:4px"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
-      <strong style="color:#fbbf24">Beveiliging:</strong> Wachtwoorden worden versleuteld opgeslagen (AES-256). Medewerkers kunnen hun eigen wachtwoord inzien maar niet wijzigen.
+      <strong style="color:#fbbf24">Beveiliging:</strong> Wachtwoorden worden versleuteld opgeslagen (AES-256). Medewerkers kunnen hun eigen accountwachtwoord wijzigen via "Wachtwoord wijzigen".
     </div>
   </div>
 
