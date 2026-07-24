@@ -140,4 +140,22 @@ CREATE TABLE IF NOT EXISTS dj_live_credentials (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- 8. Teamleden voor publieke teampagina
+CREATE TABLE IF NOT EXISTS team_members (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(120) NOT NULL,
+    role_title VARCHAR(120) NOT NULL,
+    bio TEXT DEFAULT NULL,
+    photo_url VARCHAR(255) DEFAULT NULL,
+    display_order INT NOT NULL DEFAULT 0,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+INSERT IGNORE INTO team_members (id, name, role_title, bio, photo_url, display_order, is_active) VALUES
+(1, 'DJ Marcus', 'DJ', 'Marcus draait al jaren de beste soul en R&B tijdens de ochtend- en avondshows.', NULL, 10, 1),
+(2, 'DJ Sarah', 'DJ', 'Sarah brengt classic soul en smooth vibes met een energieke presentatie.', NULL, 20, 1),
+(3, 'Redactie Team', 'Redactie', 'Ons redactieteam zorgt dagelijks voor nieuws, updates en achtergrondverhalen.', NULL, 30, 1);
+
 -- Klaar! Alle nieuwe tabellen en rollen zijn toegevoegd.

@@ -751,3 +751,36 @@ function getDjsWithLiveStatus(): array {
         return [];
     }
 }
+
+/**
+ * Publieke teamleden (alleen actief) gesorteerd op volgorde.
+ */
+function getPublicTeamMembers(): array {
+    try {
+        $stmt = getPDO()->query('
+            SELECT id, name, role_title, bio, photo_url, display_order
+            FROM team_members
+            WHERE is_active = 1
+            ORDER BY display_order ASC, name ASC
+        ');
+        return $stmt->fetchAll();
+    } catch (PDOException $e) {
+        return [];
+    }
+}
+
+/**
+ * Alle teamleden voor admin beheer.
+ */
+function getAllTeamMembers(): array {
+    try {
+        $stmt = getPDO()->query('
+            SELECT id, name, role_title, bio, photo_url, display_order, is_active, created_at, updated_at
+            FROM team_members
+            ORDER BY display_order ASC, name ASC
+        ');
+        return $stmt->fetchAll();
+    } catch (PDOException $e) {
+        return [];
+    }
+}

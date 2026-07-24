@@ -53,6 +53,7 @@ $currentProg  = getCurrentProgram();
           <a href="<?= BASE_URL ?>/schedule.php">Programmaschema</a>
           <a href="<?= BASE_URL ?>/request.php">Verzoekje doen</a>
           <a href="<?= BASE_URL ?>/news.php">Nieuws</a>
+          <a href="<?= BASE_URL ?>/team.php">Team</a>
           <a href="<?= BASE_URL ?>/contact.php">Contact</a>
           <a href="<?= BASE_URL ?>/solliciteer.php">Werken bij SoulFM</a>
         </nav>
@@ -64,6 +65,7 @@ $currentProg  = getCurrentProgram();
           <a href="<?= BASE_URL ?>/schedule.php">Uitzendingen</a>
           <a href="<?= BASE_URL ?>/request.php">Nummer aanvragen</a>
           <a href="<?= BASE_URL ?>/news.php">Nieuws & Blog</a>
+          <a href="<?= BASE_URL ?>/team.php">Ons team</a>
         </nav>
       </div>
 

@@ -49,6 +49,7 @@ $csrf        = generateCsrfToken();
         <a href="<?= BASE_URL ?>/schedule.php" class="<?= ($activePage ?? '') === 'schedule' ? 'active' : '' ?>">Programma</a>
         <a href="<?= BASE_URL ?>/request.php"  class="<?= ($activePage ?? '') === 'request'  ? 'active' : '' ?>">Verzoekje</a>
         <a href="<?= BASE_URL ?>/news.php"     class="<?= ($activePage ?? '') === 'news'     ? 'active' : '' ?>">Nieuws</a>
+        <a href="<?= BASE_URL ?>/team.php"     class="<?= ($activePage ?? '') === 'team'     ? 'active' : '' ?>">Team</a>
         <a href="<?= BASE_URL ?>/contact.php"  class="<?= ($activePage ?? '') === 'contact'  ? 'active' : '' ?>">Contact</a>
         <a href="<?= BASE_URL ?>/solliciteer.php" class="<?= ($activePage ?? '') === 'solliciteer' ? 'active' : '' ?>">Werken bij</a>
         <a href="<?= BASE_URL ?>/request.php"  class="nav-cta">Verzoekje doen</a>

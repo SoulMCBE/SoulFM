@@ -934,6 +934,20 @@ textarea.form-control { resize: vertical; min-height: 120px; }
 
 .news-grid.news-page { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
 
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.5rem;
+}
+
+.team-card-img {
+  aspect-ratio: 1 / 1;
+}
+
+.team-card .card-title {
+  font-size: 1.15rem;
+}
+
 .news-article { max-width: 800px; margin: 0 auto; }
 .news-article h1 { font-size: 2.5rem; margin-bottom: 1rem; }
 .news-article .article-meta { margin-bottom: 2rem; color: var(--color-text-dim); font-size: 0.9rem; }
